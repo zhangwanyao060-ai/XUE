@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sitemap-intelligence",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-10",
+  "assets": { "directory": "./dist", "binding": "ASSETS", "not_found_handling": "single-page-application" },
+  "triggers": { "crons": ["0 2 * * *"] },
+  "d1_databases": [{ "binding": "DB", "database_name": "sitemap-monitor-db", "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID" }],
+  "ai": { "binding": "AI" },
+  "queues": {
+    "producers": [{ "binding": "SCAN_QUEUE", "queue": "sitemap-scan" }],
+    "consumers": [{ "queue": "sitemap-scan", "max_batch_size": 2, "max_retries": 3, "max_concurrency": 2 }]
+  }
+}
