@@ -31,7 +31,7 @@ export default function App() {
   const [toast,setToast] = useState("");
   const [connected,setConnected] = useState(false);
   const [busy,setBusy] = useState(false);
-  useEffect(()=>{fetch("/api/health").then(r=>r.ok?setConnected(true):null).catch(()=>{});},[]);
+  useEffect(()=>{(async()=>{try{const health=await fetch("/api/health");if(!health.ok)return;setConnected(true);const [sr,pr]=await Promise.all([fetch("/api/websites"),fetch("/api/pages?limit=100")]);if(sr.ok){const data=await sr.json();if(Array.isArray(data)&&data.length)setSites(data.map((s:any)=>({id:s.id,name:s.name||s.domain,domain:s.domain,category:s.category||"未分类",status:s.status==="active"?"active":"paused",pages:Number(s.pages||0),newToday:0,lastScan:s.last_scan_at||"尚未扫描"})));}if(pr.ok){const data=await pr.json();if(Array.isArray(data)&&data.length)setPages(data.map((p:any)=>({id:p.id,site:p.website_name||p.domain,domain:p.domain,title:p.title||p.url,url:p.url,keyword:p.primary_keyword||"待分析",intent:p.search_intent||"分析中",type:p.page_type||"待分类",added:p.first_seen_at||"",unread:p.ai_status==="pending",category:p.category||"未分类"})));}}catch{}})();},[]);
   const unread = pages.filter(p=>p.unread).length;
   const filtered = useMemo(()=>pages.filter(p=>(category==="全部类别"||p.category===category)&&[p.title,p.keyword,p.site,p.domain].some(v=>v.toLowerCase().includes(query.toLowerCase()))),[pages,category,query]);
   const notify=(s:string)=>{setToast(s);window.setTimeout(()=>setToast(""),2600);};
