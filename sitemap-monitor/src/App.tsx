@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowUpRight, Bell, Check, ChevronDown, CircleHelp, Clock3, ExternalLink, Globe2, LayoutDashboard, Plus, RefreshCw, Search, Settings2, ShieldCheck, Sparkles, Tags, Trash2, X } from "lucide-react";
 
 type Site = { id: string; name: string; domain: string; category: string; status: "active" | "paused"; pages: number; newToday: number; lastScan: string };
-type Page = { id: string; site: string; domain: string; title: string; url: string; keyword: string; intent: string; type: string; added: string; unread: boolean; category: string };
+type Page = { id: string; eventId?: string; site: string; domain: string; title: string; url: string; keyword: string; intent: string; type: string; added: string; unread: boolean; category: string };
 const initialSites: Site[] = [
   {id:"s1",name:"MangaDex",domain:"mangadex.org",category:"漫画平台",status:"active",pages:18420,newToday:38,lastScan:"今天 10:02"},
   {id:"s2",name:"MangaFire",domain:"mangafire.to",category:"漫画平台",status:"active",pages:12950,newToday:24,lastScan:"今天 10:03"},
@@ -31,7 +31,7 @@ export default function App() {
   const [toast,setToast] = useState("");
   const [connected,setConnected] = useState(false);
   const [busy,setBusy] = useState(false);
-  useEffect(()=>{(async()=>{try{const health=await fetch("/api/health");if(!health.ok)return;setConnected(true);const [sr,pr]=await Promise.all([fetch("/api/websites"),fetch("/api/pages?limit=100")]);if(sr.ok){const data=await sr.json();if(Array.isArray(data)&&data.length)setSites(data.map((s:any)=>({id:s.id,name:s.name||s.domain,domain:s.domain,category:s.category||"未分类",status:s.status==="active"?"active":"paused",pages:Number(s.pages||0),newToday:0,lastScan:s.last_scan_at||"尚未扫描"})));}if(pr.ok){const data=await pr.json();if(Array.isArray(data)&&data.length)setPages(data.map((p:any)=>({id:p.id,site:p.website_name||p.domain,domain:p.domain,title:p.title||p.url,url:p.url,keyword:p.primary_keyword||"待分析",intent:p.search_intent||"分析中",type:p.page_type||"待分类",added:p.first_seen_at||"",unread:p.ai_status==="pending",category:p.category||"未分类"})));}}catch{}})();},[]);
+  useEffect(()=>{(async()=>{try{const health=await fetch("/api/health");if(!health.ok)return;setConnected(true);const [sr,pr]=await Promise.all([fetch("/api/websites"),fetch("/api/pages?limit=100")]);if(sr.ok){const data=await sr.json();if(Array.isArray(data)&&data.length)setSites(data.map((s:any)=>({id:s.id,name:s.name||s.domain,domain:s.domain,category:s.category||"未分类",status:s.status==="active"?"active":"paused",pages:Number(s.pages||0),newToday:0,lastScan:s.last_scan_at||"尚未扫描"})));}if(pr.ok){const data=await pr.json();if(Array.isArray(data)&&data.length)setPages(data.map((p:any)=>({id:p.id,site:p.website_name||p.domain,domain:p.domain,title:p.title||p.url,url:p.url,keyword:p.primary_keyword||"待分析",intent:p.search_intent||"分析中",type:p.page_type||"待分类",added:p.first_seen_at||"",unread:Number(p.unread||0)>0,eventId:p.latest_event_id||undefined,category:p.category||"未分类"})));}}catch{}})();},[]);
   const unread = pages.filter(p=>p.unread).length;
   const filtered = useMemo(()=>pages.filter(p=>(category==="全部类别"||p.category===category)&&[p.title,p.keyword,p.site,p.domain].some(v=>v.toLowerCase().includes(query.toLowerCase()))),[pages,category,query]);
   const notify=(s:string)=>{setToast(s);window.setTimeout(()=>setToast(""),2600);};
@@ -43,7 +43,7 @@ export default function App() {
     setSites(v=>[item,...v]);setDomain("");setName("");setShowAdd(false);notify("网站已添加");
   };
   const scan=async()=>{setBusy(true);try{if(connected){const r=await fetch("/api/scan",{method:"POST"});if(!r.ok)throw Error();notify("扫描任务已提交到 Cloudflare Queue");}else notify("当前为演示模式，部署 Worker 后可运行真实扫描");}catch{notify("提交失败，请检查 Worker 日志");}finally{setBusy(false);}};
-  const markRead=(id:string)=>setPages(v=>v.map(p=>p.id===id?{...p,unread:false}:p));
+  const markRead=async(id:string)=>{const item=pages.find(p=>p.id===id);if(connected&&item?.eventId)fetch("/api/events/"+item.eventId+"/read",{method:"POST"}).catch(()=>{});setPages(v=>v.map(p=>p.id===id?{...p,unread:false}:p));};
   const cats=["全部类别",...Array.from(new Set(sites.map(s=>s.category)))];
   const titles:Record<string,string>={overview:"总览",pages:"新增页面",sites:"监控网站",keywords:"关键词情报",settings:"设置"};
   return <div className="app-shell">
